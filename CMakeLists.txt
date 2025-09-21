@@ -4,14 +4,10 @@ project(QKD_Simulator LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Библиотека
-# add_library(pulse STATIC src/pulse.cpp)
-
-# Заголовки для библиотеки pulse
-# target_include_directories(pulse PUBLIC src external)
-
 # Программа
 add_executable(qc_service src/main.cpp)
+
+target_include_directories(qc_service PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Линкуем библиотеку
 # target_link_libraries(qkd_simulator PRIVATE pulse)
