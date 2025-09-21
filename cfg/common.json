@@ -1,0 +1,6 @@
+{
+  "protocol": "BB84",
+  "key_length": 128,
+  "automod": false,
+  "number_keys": 1
+}
