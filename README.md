@@ -1,2 +1,2 @@
-docker build -t simqc .
-docker run simqc
+1. docker build -t simqc .
+2. docker run simqc
