@@ -3,6 +3,7 @@
 #include <time.h>
 #include <complex>
 #include <cmath>
+#include <vector>
 #include "simulation_params.hpp"
 #include "laser.hpp"
 
@@ -31,14 +32,19 @@ int main() {
     std::cout << "Configuration is done" << std::endl;
 
     clock_t time = clock();
-    std::cout << "Время выполнения: " << (double)(time - tStart) / CLOCKS_PER_SEC << " секунд" << std::endl;
+    std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
     LaserDevice ld;
-    Pulse pl = ld.gen_pulse(laser_data.avg_count_photons);
 
-    std::cout << "1: " << pl.count_photons << std::endl;
-    std::cout << "2: " << pl.duration << std::endl;
+    // pulse sequence generation
+    std::vector<Pulse> seq_pulses;
+    for (uint16_t i = 0; i < 10; i++)
+    {
+        Pulse pl = ld.gen_pulse(laser_data.avg_count_photons);
+        seq_pulses.push_back(pl);
+    }
+
     time = clock();
-    std::cout << "Время выполнения: " << (double)(time - tStart) / CLOCKS_PER_SEC << " секунд" << std::endl;
+    std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
 
     // JonesVector v = getJonesVector(Polarization::RCP);
 
