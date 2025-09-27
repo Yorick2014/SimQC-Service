@@ -1,8 +1,13 @@
 #include <iostream>
 #include <string>
 #include <time.h>
+#include <complex>
+#include <cmath>
 #include "simulation_params.hpp"
 #include "laser.hpp"
+
+using JonesVector = std::array<std::complex<double>, 2>;
+JonesVector get_jones_vector(Polarization p);
 
 void load_cfg(Common &params, LaserData &laser_data){
     try {
@@ -35,6 +40,28 @@ int main() {
     time = clock();
     std::cout << "Время выполнения: " << (double)(time - tStart) / CLOCKS_PER_SEC << " секунд" << std::endl;
 
+    // JonesVector v = getJonesVector(Polarization::RCP);
+
     std::cout << "End" << std::endl;
     return 0;
+}
+
+JonesVector get_jones_vector(Polarization p) {
+    static const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    using cd = std::complex<double>;
+    switch (p) {
+        case Polarization::horizontal:
+            return { cd(1,0), cd(0,0) };
+        case Polarization::vertical:
+            return { cd(0,0), cd(1,0) };
+        case Polarization::diagonal:
+            return { cd(inv_sqrt2,0), cd(inv_sqrt2,0) };
+        case Polarization::antidiagonal:
+            return { cd(inv_sqrt2,0), cd(-inv_sqrt2,0) };
+        case Polarization::RCP:
+            return { cd(inv_sqrt2,0), cd(0,-inv_sqrt2) }; // [1, -i]/√2
+        case Polarization::LCP:
+            return { cd(inv_sqrt2,0), cd(0, inv_sqrt2) }; // [1, +i]/√2
+    }
+    return { cd(0,0), cd(0,0) }; // fallback
 }
