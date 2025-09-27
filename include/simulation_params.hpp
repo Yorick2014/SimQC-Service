@@ -17,19 +17,30 @@ T load_config(const std::string& path) {
     return json.get<T>();
 }
 
+enum class Polarization { horizontal, vertical, diagonal, antidiagonal, RCP, LCP };
+enum class Bit { Zero = 0, One = 1 };
+
 struct Common{
     std::string protocol;
-    unsigned int key_length;
+    uint16_t key_length;
     bool automod;
-    unsigned int number_keys;
+    uint16_t number_keys; // кол-во сгенерированных ключей
 };
 
-struct Laser{
+struct LaserData{
     double central_wavelength;
     double pulse_duration;
     double avg_count_photons;
     double repeat_rate; // частота повторения импульсов
 };
+struct Pulse {
+    uint16_t count_photons;
+    Polarization polarization;
+    double duration;
+    Pulse(uint16_t c, Polarization p, double d)
+        : count_photons(c), polarization(p), duration(d) {}
+};
+
 struct QuantumChannel{
     double channel_length;
     double chromatic_dispersion;
@@ -50,7 +61,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE (Common,
     number_keys
 )
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Laser,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LaserData,
     central_wavelength,
     pulse_duration,
     avg_count_photons,
