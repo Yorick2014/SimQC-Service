@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Программа
-add_executable(qc_service src/main.cpp)
+add_executable(qc_service src/main.cpp src/laser.cpp)
 
 target_include_directories(qc_service PRIVATE ${CMAKE_SOURCE_DIR}/include)
 

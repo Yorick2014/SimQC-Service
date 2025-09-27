@@ -1,5 +1,7 @@
 #include "laser.hpp"
 
+uint16_t get_photons(double photon_dist);
+
 Pulse LaserDevice::gen_pulse(double photon_dist) {
     uint16_t c_p = get_photons(photon_dist);
 
