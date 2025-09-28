@@ -33,13 +33,15 @@ int main() {
 
     clock_t time = clock();
     std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
+
+    // --- laser operation ---
     LaserDevice ld;
 
     // pulse sequence generation
     std::vector<Pulse> seq_pulses;
     for (uint16_t i = 0; i < 10; i++)
     {
-        Pulse pl = ld.gen_pulse(laser_data.avg_count_photons);
+        Pulse pl = ld.gen_pulse(laser_data.avg_count_photons, laser_data.pulse_duration);
         seq_pulses.push_back(pl);
     }
 

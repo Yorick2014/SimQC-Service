@@ -5,7 +5,7 @@
 
 class LaserDevice {
 public:
-    Pulse gen_pulse(double photon_dist);
+    Pulse gen_pulse(double photon_dist, double pulse_duration);
 private:
 
 };
