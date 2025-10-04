@@ -18,7 +18,8 @@ T load_config(const std::string& path) {
 }
 
 enum class Polarization { horizontal, vertical, diagonal, antidiagonal, RCP, LCP };
-enum class Bit { Zero = 0, One = 1 };
+enum class Basis { rectilinear, diagonal };
+enum class Bit { zero = 0, one = 1 };
 
 struct Common{
     std::string protocol;
@@ -29,8 +30,9 @@ struct Common{
 
 struct LaserData{
     double central_wavelength;
+    double laser_power_w;
     double pulse_duration;
-    double avg_count_photons;
+    double attenuation_db;
     double repeat_rate; // частота повторения импульсов
 };
 struct Pulse {
@@ -39,6 +41,12 @@ struct Pulse {
     double duration;
     Pulse(uint16_t c, Polarization p, double d)
         : count_photons(c), polarization(p), duration(d) {}
+};
+
+struct QubitPulse {
+    Bit bit;
+    Basis basis;
+    uint64_t timestamp;
 };
 
 struct QuantumChannel{
@@ -63,8 +71,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE (Common,
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LaserData,
     central_wavelength,
+    laser_power_w,
     pulse_duration,
-    avg_count_photons,
+    attenuation_db,
     repeat_rate
 )
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(QuantumChannel,
