@@ -6,9 +6,8 @@
 #include <vector>
 #include "simulation_params.hpp"
 #include "laser.hpp"
-
-using JonesVector = std::array<std::complex<double>, 2>;
-JonesVector get_jones_vector(Polarization p);
+#include "sequence_generator.hpp"
+#include "bb84.hpp"
 
 void load_cfg(Common &params, LaserData &laser_data){
     try {
@@ -35,15 +34,14 @@ int main() {
     std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
 
     // --- laser operation ---
-    LaserDevice ld;
 
     // pulse sequence generation
-    std::vector<Pulse> seq_pulses;
-    for (uint16_t i = 0; i < 10; i++)
-    {
-        Pulse pl = ld.gen_pulse(laser_data.avg_count_photons, laser_data.pulse_duration);
-        seq_pulses.push_back(pl);
-    }
+    // std::vector<Pulse> seq_pulses;
+    // for (uint16_t i = 0; i < 10; i++)
+    // {
+    //     Pulse pl = ld.gen_pulse(laser_data.avg_count_photons, laser_data.pulse_duration);
+    //     seq_pulses.push_back(pl);
+    // }
 
     time = clock();
     std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
@@ -52,24 +50,4 @@ int main() {
 
     std::cout << "End" << std::endl;
     return 0;
-}
-
-JonesVector get_jones_vector(Polarization p) {
-    static const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
-    using cd = std::complex<double>;
-    switch (p) {
-        case Polarization::horizontal:
-            return { cd(1,0), cd(0,0) };
-        case Polarization::vertical:
-            return { cd(0,0), cd(1,0) };
-        case Polarization::diagonal:
-            return { cd(inv_sqrt2,0), cd(inv_sqrt2,0) };
-        case Polarization::antidiagonal:
-            return { cd(inv_sqrt2,0), cd(-inv_sqrt2,0) };
-        case Polarization::RCP:
-            return { cd(inv_sqrt2,0), cd(0,-inv_sqrt2) }; // [1, -i]/√2
-        case Polarization::LCP:
-            return { cd(inv_sqrt2,0), cd(0, inv_sqrt2) }; // [1, +i]/√2
-    }
-    return { cd(0,0), cd(0,0) }; // fallback
 }
