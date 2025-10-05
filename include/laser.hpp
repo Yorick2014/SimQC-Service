@@ -15,11 +15,13 @@ private:
     double laser_power_w;      // ватт
     double attenuation_db;     // dB (положительное - потеря)
     double pulse_duration_s;   // сек
+    double repeat_rate_hz;     // Гц
+    double current_time;       // сек
 
     static double photon_energy_joule(double wavelength_m);
 
 public:
-    AttLaser(const double wavelength, double laser_power_w, double attenuation_db, double pulse_duration_s = 1e-9);
+    AttLaser(const double wavelength, double laser_power_w, double attenuation_db, double pulse_duration_s, double repeat_rate_hz);
 
     Pulse generate_pulse() override;
 };

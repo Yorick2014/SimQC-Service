@@ -21,11 +21,17 @@ double AttLaser::photon_energy_joule(double wavelength_m) {
     return h * c / wavelength_m;
 }
 
-AttLaser::AttLaser(const double wavelength, double laser_power_w, double attenuation_db, double pulse_duration_s)
+AttLaser::AttLaser(double wavelength,
+                   double laser_power_w,
+                   double attenuation_db,
+                   double pulse_duration_s,
+                   double repeat_rate_hz)
     : wavelength(wavelength),
       laser_power_w(laser_power_w),
       attenuation_db(attenuation_db),
-      pulse_duration_s(pulse_duration_s) {}
+      pulse_duration_s(pulse_duration_s),
+      repeat_rate_hz(repeat_rate_hz),
+      current_time(0.0) {}
 
 Pulse AttLaser::generate_pulse() {
     const double E_ph = photon_energy_joule(wavelength);
@@ -43,6 +49,9 @@ Pulse AttLaser::generate_pulse() {
 
     uint16_t count = poisson_draw(mean_photons);
 
-    // горизонтальная поляризация, позже модулятор её изменит
-    return Pulse(count, Polarization::horizontal, pulse_duration_s);
+    Pulse pulse(count, Polarization::horizontal, pulse_duration_s, current_time);
+
+    current_time += 1.0 / repeat_rate_hz;
+
+    return pulse;
 }
