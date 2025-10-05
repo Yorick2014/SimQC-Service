@@ -1,7 +1,7 @@
 {
   "central_wavelength": 1550e-9,
   "laser_power_w": 1e-3,
-  "pulse_duration": 0.5e-9,
-  "attenuation_db": 1e5,
-  "repeat_rate": 1e9
+  "pulse_duration": 1e-9,
+  "attenuation_db": 60,
+  "repeat_rate": 300e6
 }
