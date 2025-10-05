@@ -5,19 +5,18 @@
 
 class SequenceGenerator {
 private:
-    std::vector<QubitPulse> sequence;
+    std::vector<Qubit> sequence;
     std::mt19937 gen;
     std::uniform_int_distribution<int> bit_dist;
     std::uniform_int_distribution<int> basis_dist;
-    uint64_t time_counter = 0; // дискретные шаги
 
 public:
-    explicit SequenceGenerator(unsigned int seed = std::random_device{}());
+    SequenceGenerator(unsigned int seed = std::random_device{}());
 
-    void generate(size_t length);
+    void generate(uint32_t length);
 
-    const std::vector<QubitPulse>& get_sequence() const;
-    const QubitPulse& operator[](size_t idx) const;
+    const std::vector<Qubit>& get_sequence() const;
+    const Qubit& operator[](uint32_t idx) const;
 
-    size_t size() const;
+    uint32_t size() const;
 };
