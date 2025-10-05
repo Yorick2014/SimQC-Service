@@ -7,6 +7,7 @@
 #include "simulation_params.hpp"
 #include "laser.hpp"
 #include "sequence_generator.hpp"
+#include "bb84.hpp"
 
 void load_cfg(Common &params, LaserData &laser_data){
     try {
@@ -20,63 +21,84 @@ void load_cfg(Common &params, LaserData &laser_data){
 
 int main() {
     std::cout << "Start" << std::endl;
-    clock_t tStart = clock();
-    
+
+    // --- Шаг 1: загрузка конфигурации ---
     Common params;
-    LaserData l_d;
+    LaserData laser_data;
+    load_cfg(params, laser_data);
 
-    std::cout << "Configuration..." << std::endl;
-    load_cfg(params, l_d);
-    std::cout << "Configuration is done" << std::endl;
+    // --- Шаг 2: инициализация лазера ---
+    AttLaser laser(
+        laser_data.central_wavelength,
+        laser_data.laser_power_w,
+        laser_data.attenuation_db,
+        laser_data.pulse_duration,
+        laser_data.repeat_rate
+    );
 
-    clock_t time = clock();
-    std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
+    // --- Шаг 3: создание Алисы и Боба ---
+    Alice alice(laser, 42);
+    Bob bob(1337);
 
-    // --- laser operation ---
-    AttLaser laser(l_d.central_wavelength, l_d.laser_power_w, l_d.attenuation_db, l_d.pulse_duration, l_d.repeat_rate);
-    // for (int i = 0; i < 5; ++i) {
-    //     Pulse p = laser.generate_pulse();
-    //     std::cout << "Pulse " << i
-    //               << " | Photons: " << p.count_photons
-    //               << " | Timestamp: " << p.timestamp << " s\n";
-    // }
-    
-    std::vector<Pulse> seq_pulses;
-    for (uint16_t i = 0; i < 10; i++)
-    {
-        Pulse pl = laser.generate_pulse();
-        seq_pulses.push_back(pl);
+    // --- Шаг 4: Алиса генерирует импульсы ---
+    size_t N = 20;
+    auto sent_pulses = alice.generate_pulses(N);
+
+    std::cout << "\n[ALICE] Generated pulses:\n";
+    std::cout << "Idx | Bit | Basis | Polarization | Photons | Timestamp (ns)\n";
+    std::cout << "-----------------------------------------------------------\n";
+    for (size_t i = 0; i < sent_pulses.size(); ++i) {
+        const auto& sp = sent_pulses[i];
+        std::string basis_str = (sp.qubit.basis == Basis::rectilinear) ? "R" : "D";
+        std::string pol_str;
+        switch (sp.pulse.polarization) {
+            case Polarization::horizontal: pol_str = "H"; break;
+            case Polarization::vertical: pol_str = "V"; break;
+            case Polarization::diagonal: pol_str = "D"; break;
+            case Polarization::antidiagonal: pol_str = "A"; break;
+            case Polarization::RCP: pol_str = "RCP"; break;
+            case Polarization::LCP: pol_str = "LCP"; break;
+        }
+
+        std::cout << std::setw(3) << i
+                  << " |  " << static_cast<int>(sp.qubit.bit)
+                  << "  |   " << basis_str
+                  << "   |      " << std::setw(3) << pol_str
+                  << "        |  " << std::setw(5) << sp.pulse.count_photons
+                  << "   |  " << std::fixed << std::setprecision(6) << sp.pulse.timestamp * 1e9
+                  << "\n";
     }
-    Pulse pl1 = seq_pulses[2];
-    std::cout << pl1.timestamp << std::endl;
 
-    //////////////////////////////////////////
-    ///             modulator              ///
+    // --- Шаг 5: Алиса "отправляет" (поляризации) ---
+    auto states = alice.send(N);
 
-    SequenceGenerator gen(42);
-    gen.generate(10);
-    const auto& seq = gen.get_sequence();
+    // --- Шаг 6: Боб принимает и измеряет ---
+    auto bob_results = bob.receive(states);
 
-    for (const auto& qubit : seq) {
-        std::cout << "Bit: " << static_cast<int>(qubit.bit)
-                << ", Basis: " << (qubit.basis == Basis::rectilinear ? "R" : "D")
-                << "\n";
+    std::cout << "\n[BOB] Measurement results:\n";
+    const auto& bob_bases = bob.get_bases();
+    for (size_t i = 0; i < bob_results.size(); ++i) {
+        std::string basis_str = (bob_bases[i].basis == Basis::rectilinear) ? "R" : "D";
+        std::string bit_str = bob_results[i].has_value()
+                                ? std::to_string(static_cast<int>(bob_results[i].value()))
+                                : "X"; // неопределён
+        std::cout << "Idx " << std::setw(2) << i
+                  << " | Basis: " << basis_str
+                  << " | Bit: " << bit_str
+                  << "\n";
     }
-    std::cout << "четвёртый кубит" << std::endl;
 
-    const Qubit& q = gen[3];
-    std::cout << "Bit: " << static_cast<int>(q.bit)
-            << ", Basis: " << (q.basis == Basis::rectilinear ? "R" : "D") 
-            << "\n";
+    // --- Шаг 7: Согласование ключей ---
+    auto key = sift_key(alice, bob, bob_results);
 
-    ///             modulator              ///
-    //////////////////////////////////////////
-
-
-    time = clock();
-    std::cout << "Time: " << (double)(time - tStart) / CLOCKS_PER_SEC << " sec" << std::endl;
-
-    // JonesVector v = getJonesVector(Polarization::RCP);
+    std::cout << "\n[SIFTED KEY] ";
+    if (key.empty()) {
+        std::cout << "(пустой — нет совпадений базисов)\n";
+    } else {
+        for (auto bit : key)
+            std::cout << static_cast<int>(bit);
+        std::cout << "\n";
+    }
 
     std::cout << "End" << std::endl;
     return 0;
