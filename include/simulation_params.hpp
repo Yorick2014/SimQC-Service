@@ -39,14 +39,14 @@ struct Pulse {
     uint16_t count_photons;
     Polarization polarization;
     double duration;
-    Pulse(uint16_t c, Polarization p, double d)
-        : count_photons(c), polarization(p), duration(d) {}
+    double timestamp;
+    Pulse(uint16_t c, Polarization p, double d, double t)
+        : count_photons(c), polarization(p), duration(d), timestamp(t) {}
 };
 
-struct QubitPulse {
+struct Qubit {
     Bit bit;
     Basis basis;
-    uint64_t timestamp;
 };
 
 struct QuantumChannel{
