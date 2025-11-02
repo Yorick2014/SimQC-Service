@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 
+// используется для загрузки конфига непосредственно из json файла
 template<typename T>
 T load_config(const std::string& path) {
     std::ifstream file(path);
@@ -14,6 +15,13 @@ T load_config(const std::string& path) {
     nlohmann::json json;
     file >> json;
 
+    return json.get<T>();
+}
+
+// используется для получения конфига из строки
+template<typename T>
+T set_config(const std::string& json_str) {
+    nlohmann::json json = nlohmann::json::parse(json_str);
     return json.get<T>();
 }
 
