@@ -1,7 +1,7 @@
 {
   "protocol": "BB84",
   "laser_type": "AttLaser",
-  "num_pulses": 128,
+  "num_pulses": 10,
   "seed_Alice": 10,
   "seed_Bob": 21
 }
