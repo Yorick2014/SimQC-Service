@@ -31,11 +31,11 @@ int main() {
     std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
 
     // --- Шаг 3: создание Алисы и Боба ---
-    Alice alice(*laser, 42);
-    Bob bob(1337);
+    Alice alice(*laser, params.seed_Alice);
+    Bob bob(params.seed_Bob);
 
     // --- Шаг 4: Алиса генерирует импульсы ---
-    size_t N = 20;
+    auto N = params.num_pulses;
     auto sent_pulses = alice.generate_pulses(N);
 
     std::cout << "\n[ALICE] Generated pulses:\n";
