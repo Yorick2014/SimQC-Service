@@ -28,16 +28,10 @@ int main() {
     load_cfg(params, laser_data);
 
     // --- Шаг 2: инициализация лазера ---
-    AttLaser laser(
-        laser_data.central_wavelength,
-        laser_data.laser_power_w,
-        laser_data.attenuation_db,
-        laser_data.pulse_duration,
-        laser_data.repeat_rate
-    );
+    std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
 
     // --- Шаг 3: создание Алисы и Боба ---
-    Alice alice(laser, 42);
+    Alice alice(*laser, 42);
     Bob bob(1337);
 
     // --- Шаг 4: Алиса генерирует импульсы ---

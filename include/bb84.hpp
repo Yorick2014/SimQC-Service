@@ -16,11 +16,11 @@ class Alice {
 private:
     SequenceGenerator generator;
     PolarizationModulator modulator;
-    AttLaser& laser;                // ссылочный внешний лазер (передаётся извне)
+    ILaser& laser;                // ссылочный внешний лазер (передаётся извне)
 
 public:
-    // Принимаем внешний AttLaser, чтобы можно было переиспользовать разные лазеры.
-    explicit Alice(AttLaser& laser_ref, unsigned int seed = std::random_device{}());
+    // Принимаем внешний ILaser, чтобы можно было переиспользовать разные лазеры.
+    explicit Alice(ILaser& laser_ref, unsigned int seed = std::random_device{}());
 
     // Сгенерировать пары {Pulse + Qubit} (не отправляет),
     // устанавливает поляризацию в Pulse в соответствии с Qubit.

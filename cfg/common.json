@@ -1,5 +1,6 @@
 {
   "protocol": "BB84",
+  "laser_type": "AttLaser",
   "key_length": 128,
   "automod": false,
   "number_keys": 1

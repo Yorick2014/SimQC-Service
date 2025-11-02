@@ -23,6 +23,7 @@ enum class Bit { zero = 0, one = 1 };
 
 struct Common{
     std::string protocol;
+    std::string laser_type;
     uint16_t key_length;
     bool automod;
     uint16_t number_keys; // кол-во сгенерированных ключей
@@ -64,6 +65,7 @@ struct Photodetector{
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE (Common,
     protocol,
+    laser_type,
     key_length,
     automod,
     number_keys
