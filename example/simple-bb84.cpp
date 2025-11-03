@@ -22,26 +22,16 @@ void load_cfg(Common &params, LaserData &laser_data){
 int main() {
     std::cout << "Start" << std::endl;
 
-    // --- Шаг 1: загрузка конфигурации ---
     Common params;
     LaserData laser_data;
     load_cfg(params, laser_data);
 
-    // --- Шаг 2: инициализация лазера ---
-    AttLaser laser(
-        laser_data.central_wavelength,
-        laser_data.laser_power_w,
-        laser_data.attenuation_db,
-        laser_data.pulse_duration,
-        laser_data.repeat_rate
-    );
+    std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
 
-    // --- Шаг 3: создание Алисы и Боба ---
-    Alice alice(laser, 42);
-    Bob bob(1337);
+    Alice alice(*laser, params.seed_Alice);
+    Bob bob(params.seed_Bob);
 
-    // --- Шаг 4: Алиса генерирует импульсы ---
-    size_t N = 20;
+    auto N = params.num_pulses;
     auto sent_pulses = alice.generate_pulses(N);
 
     std::cout << "\n[ALICE] Generated pulses:\n";
@@ -58,6 +48,7 @@ int main() {
             case Polarization::antidiagonal: pol_str = "A"; break;
             case Polarization::RCP: pol_str = "RCP"; break;
             case Polarization::LCP: pol_str = "LCP"; break;
+            default: std::cout << "Polarization is undefined"; break;
         }
 
         std::cout << std::setw(3) << i
@@ -69,10 +60,7 @@ int main() {
                   << "\n";
     }
 
-    // --- Шаг 5: Алиса "отправляет" (поляризации) ---
     auto states = alice.send(N);
-
-    // --- Шаг 6: Боб принимает и измеряет ---
     auto bob_results = bob.receive(states);
 
     std::cout << "\n[BOB] Measurement results:\n";
@@ -88,7 +76,6 @@ int main() {
                   << "\n";
     }
 
-    // --- Шаг 7: Согласование ключей ---
     auto key = sift_key(alice, bob, bob_results);
 
     std::cout << "\n[SIFTED KEY] ";

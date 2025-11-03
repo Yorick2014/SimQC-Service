@@ -1,12 +1,22 @@
 #pragma once
 #include <iostream>
 #include <random>
+#include <memory>
+#include <string>
 #include "simulation_params.hpp"
 
 class ILaser {
 public:
     virtual Pulse generate_pulse() = 0;
     virtual ~ILaser() = default;
+};
+
+class LaserFactory {
+public:
+    static std::unique_ptr<ILaser> create(
+        const std::string& type,
+        const LaserData& data
+    );
 };
 
 class AttLaser : public ILaser {

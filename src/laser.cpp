@@ -1,5 +1,23 @@
 #include "laser.hpp"
 #include <random>
+#include <stdexcept>
+
+std::unique_ptr<ILaser> LaserFactory::create(
+    const std::string& type,
+    const LaserData& data
+) {
+    if (type == "AttLaser") {
+        return std::make_unique<AttLaser>(
+            data.central_wavelength,
+            data.laser_power_w,
+            data.attenuation_db,
+            data.pulse_duration,
+            data.repeat_rate
+        );
+    }
+
+    throw std::invalid_argument("Некорректный тип лазера: " + type);
+}
 
 static uint16_t get_photons(double photon_dist) {
     static std::random_device rd;

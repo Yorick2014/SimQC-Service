@@ -4,6 +4,16 @@ project(QKD_Simulator LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(qc_service src/main.cpp src/laser.cpp src/sequence_gen.cpp src/bb84.cpp src/modulator.cpp)
+add_library(qkd_lib
+    src/bb84.cpp
+    src/laser.cpp
+    src/sequence_generator.cpp
+    src/modulator.cpp
+)
 
-target_include_directories(qc_service PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(qkd_lib
+    PUBLIC ${CMAKE_SOURCE_DIR}/include
+)
+
+add_executable(simple-bb84 example/simple-bb84.cpp)
+target_link_libraries(simple-bb84 PRIVATE qkd_lib)

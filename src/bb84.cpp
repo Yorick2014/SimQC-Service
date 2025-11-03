@@ -2,11 +2,11 @@
 #include <stdexcept>
 #include <iostream>
 
-Alice::Alice(AttLaser& laser_ref, unsigned int seed)
+Alice::Alice(ILaser& laser_ref, unsigned int seed)
     : generator(seed), modulator(), laser(laser_ref) {}
 
 // generate_pulses: генерируем последовательность Qubit'ов через SequenceGenerator,
-// создаём соответствующее количество физических импульсов через AttLaser,
+// создаём соответствующее количество физических импульсов через ILaser,
 // задаём каждому Pulse поляризацию согласно протоколу (через PolarizationModulator)
 // и возвращаем вектор пар {Pulse, Qubit}.
 std::vector<SentPulse> Alice::generate_pulses(size_t length) {
