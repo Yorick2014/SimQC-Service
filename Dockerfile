@@ -1,6 +1,7 @@
-FROM gcc:latest AS build
+FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y \
+    build-essential \
     cmake \
     make \
     git \
@@ -10,21 +11,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 COPY . .
 
-RUN cmake -S . -B build && \
-    cmake --build build --config Release
+RUN cmake -S . -B build && cmake --build build --config Release
 
-FROM ubuntu:latest
-
-RUN apt-get update && apt-get install -y \
-    libstdc++6 \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN groupadd -r qkduser && useradd -r -g qkduser qkduser
-USER qkduser
-
-WORKDIR /app
-
-COPY --from=build /app/build/simple-bb84 .
-COPY cfg ./cfg
-
-ENTRYPOINT ["./simple-bb84"]
+EXPOSE 5555
+CMD ["./build/app/qkd_api"]

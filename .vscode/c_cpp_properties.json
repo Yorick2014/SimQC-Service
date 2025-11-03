@@ -3,6 +3,9 @@
     {
       "name": "Linux",
       "includePath": [
+        "${workspaceFolder}/app/include",
+        "${workspaceFolder}/app/external",
+        "${workspaceFolder}/simqc/include",
         "${workspaceFolder}/**",
         "/usr/include/c++/12",
         "/usr/include/x86_64-linux-gnu/c++/12",
