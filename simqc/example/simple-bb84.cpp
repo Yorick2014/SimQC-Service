@@ -1,7 +1,5 @@
 #include <iostream>
 #include <string>
-#include <time.h>
-#include <complex>
 #include <cmath>
 #include <vector>
 #include "simulation_params.hpp"
@@ -28,8 +26,8 @@ int main() {
 
     std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
 
-    Alice alice(*laser, params.seed_Alice);
-    Bob bob(params.seed_Bob);
+    AliceBB84 alice(*laser, params.seed_Alice);
+    BobBB84 bob(params.seed_Bob);
 
     auto N = params.num_pulses;
     auto sent_pulses = alice.generate_pulses(N);

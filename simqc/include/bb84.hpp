@@ -12,7 +12,7 @@ struct SentPulse {
     SentPulse(const Pulse& p, const Qubit& q) : pulse(p), qubit(q) {}
 };
 
-class Alice {
+class AliceBB84 {
 private:
     SequenceGenerator generator;
     PolarizationModulator modulator;
@@ -20,7 +20,7 @@ private:
 
 public:
     // Принимаем внешний ILaser, чтобы можно было переиспользовать разные лазеры.
-    explicit Alice(ILaser& laser_ref, unsigned int seed = std::random_device{}());
+    explicit AliceBB84(ILaser& laser_ref, unsigned int seed = std::random_device{}());
 
     // Сгенерировать пары {Pulse + Qubit} (не отправляет),
     // устанавливает поляризацию в Pulse в соответствии с Qubit.
@@ -34,12 +34,12 @@ public:
     const std::vector<Qubit>& get_sequence() const;
 };
 
-class Bob {
+class BobBB84 {
 private:
     SequenceGenerator basis_generator; // для случайных базисов
 
 public:
-    explicit Bob(unsigned int seed = std::random_device{}());
+    explicit BobBB84(unsigned int seed = std::random_device{}());
 
     std::vector<std::optional<Bit>> receive(const std::vector<Polarization>& states);
 
@@ -48,6 +48,8 @@ public:
 };
 
 // Согласование ключей (оставить только те позиции, где базисы совпали)
-std::vector<Bit> sift_key(const Alice& alice, const Bob& bob,
+std::vector<Bit> sift_key(const AliceBB84& alice, const BobBB84& bob,
                           const std::vector<std::optional<Bit>>& bob_results);
+
+void run_bb84(Common& params, LaserData& laser_data);
 

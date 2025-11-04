@@ -2,14 +2,14 @@
 #include <stdexcept>
 #include <iostream>
 
-Alice::Alice(ILaser& laser_ref, unsigned int seed)
+AliceBB84::AliceBB84(ILaser& laser_ref, unsigned int seed)
     : generator(seed), modulator(), laser(laser_ref) {}
 
 // generate_pulses: генерируем последовательность Qubit'ов через SequenceGenerator,
 // создаём соответствующее количество физических импульсов через ILaser,
 // задаём каждому Pulse поляризацию согласно протоколу (через PolarizationModulator)
 // и возвращаем вектор пар {Pulse, Qubit}.
-std::vector<SentPulse> Alice::generate_pulses(size_t length) {
+std::vector<SentPulse> AliceBB84::generate_pulses(size_t length) {
     generator.generate(length);
     const auto& seq = generator.get_sequence();
 
@@ -33,7 +33,7 @@ std::vector<SentPulse> Alice::generate_pulses(size_t length) {
 // которые подлежат отправке в квантовый канал.
 // Фактическая "передача" (например, помещение в объект QuantumChannel) должна
 // выполняться в вызывающем коде с использованием результата generate_pulses().
-std::vector<Polarization> Alice::send(size_t length) {
+std::vector<Polarization> AliceBB84::send(size_t length) {
     auto sent = generate_pulses(length);
     std::vector<Polarization> pols;
     pols.reserve(sent.size());
@@ -43,14 +43,14 @@ std::vector<Polarization> Alice::send(size_t length) {
     return pols;
 }
 
-const std::vector<Qubit>& Alice::get_sequence() const {
+const std::vector<Qubit>& AliceBB84::get_sequence() const {
     return generator.get_sequence();
 }
 
-Bob::Bob(unsigned int seed)
+BobBB84::BobBB84(unsigned int seed)
     : basis_generator(seed) {}
 
-std::vector<std::optional<Bit>> Bob::receive(const std::vector<Polarization>& states) {
+std::vector<std::optional<Bit>> BobBB84::receive(const std::vector<Polarization>& states) {
     size_t n = states.size();
     basis_generator.generate(n);
     const auto& bases = basis_generator.get_sequence();
@@ -84,12 +84,12 @@ std::vector<std::optional<Bit>> Bob::receive(const std::vector<Polarization>& st
     return results;
 }
 
-const std::vector<Qubit>& Bob::get_bases() const {
+const std::vector<Qubit>& BobBB84::get_bases() const {
     return basis_generator.get_sequence();
 }
 
 /// ------------------- sift_key -------------------
-std::vector<Bit> sift_key(const Alice& alice, const Bob& bob,
+std::vector<Bit> sift_key(const AliceBB84& alice, const BobBB84& bob,
                           const std::vector<std::optional<Bit>>& bob_results) {
     const auto& a_seq = alice.get_sequence();
     const auto& b_bases = bob.get_bases();
@@ -109,4 +109,68 @@ std::vector<Bit> sift_key(const Alice& alice, const Bob& bob,
     }
 
     return key;
+}
+
+void run_bb84(Common& params, LaserData& laser_data){
+
+    std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
+
+    AliceBB84 alice(*laser, params.seed_Alice);
+    BobBB84 bob(params.seed_Bob);
+
+    auto N = params.num_pulses;
+    auto sent_pulses = alice.generate_pulses(N);
+
+    std::cout << "\n[ALICE] Generated pulses:\n";
+    std::cout << "Idx | Bit | Basis | Polarization | Photons | Timestamp (ns)\n";
+    std::cout << "-----------------------------------------------------------\n";
+    for (size_t i = 0; i < sent_pulses.size(); ++i) {
+        const auto& sp = sent_pulses[i];
+        std::string basis_str = (sp.qubit.basis == Basis::rectilinear) ? "R" : "D";
+        std::string pol_str;
+        switch (sp.pulse.polarization) {
+            case Polarization::horizontal: pol_str = "H"; break;
+            case Polarization::vertical: pol_str = "V"; break;
+            case Polarization::diagonal: pol_str = "D"; break;
+            case Polarization::antidiagonal: pol_str = "A"; break;
+            case Polarization::RCP: pol_str = "RCP"; break;
+            case Polarization::LCP: pol_str = "LCP"; break;
+            default: std::cout << "Polarization is undefined"; break;
+        }
+
+        std::cout << std::setw(3) << i
+                  << " |  " << static_cast<int>(sp.qubit.bit)
+                  << "  |   " << basis_str
+                  << "   |      " << std::setw(3) << pol_str
+                  << "        |  " << std::setw(5) << sp.pulse.count_photons
+                  << "   |  " << std::fixed << std::setprecision(6) << sp.pulse.timestamp * 1e9
+                  << "\n";
+    }
+
+    auto states = alice.send(N);
+    auto bob_results = bob.receive(states);
+
+    std::cout << "\n[BOB] Measurement results:\n";
+    const auto& bob_bases = bob.get_bases();
+    for (size_t i = 0; i < bob_results.size(); ++i) {
+        std::string basis_str = (bob_bases[i].basis == Basis::rectilinear) ? "R" : "D";
+        std::string bit_str = bob_results[i].has_value()
+                                ? std::to_string(static_cast<int>(bob_results[i].value()))
+                                : "X"; // неопределён
+        std::cout << "Idx " << std::setw(2) << i
+                  << " | Basis: " << basis_str
+                  << " | Bit: " << bit_str
+                  << "\n";
+    }
+
+    auto key = sift_key(alice, bob, bob_results);
+
+    std::cout << "\n[SIFTED KEY] ";
+    if (key.empty()) {
+        std::cout << "(пустой — нет совпадений базисов)\n";
+    } else {
+        for (auto bit : key)
+            std::cout << static_cast<int>(bit);
+        std::cout << "\n";
+    }
 }

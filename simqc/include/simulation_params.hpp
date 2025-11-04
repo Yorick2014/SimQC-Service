@@ -25,12 +25,13 @@ T set_config(const std::string& json_str) {
     return json.get<T>();
 }
 
+enum class QKDProtocol {BB84, SARG04};
 enum class Polarization { horizontal, vertical, diagonal, antidiagonal, RCP, LCP };
 enum class Basis { rectilinear, diagonal };
 enum class Bit { zero = 0, one = 1 };
 
 struct Common{
-    std::string protocol;
+    QKDProtocol protocol;
     std::string laser_type;
     uint32_t num_pulses;
     uint16_t seed_Alice;
