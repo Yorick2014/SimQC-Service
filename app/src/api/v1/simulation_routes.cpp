@@ -18,27 +18,24 @@ void register_routes(httplib::Server& svr) {
             controller.load_config(params, laser);
             // res.status = 200;
             res.set_content("Configuration loaded", "text/plain");
-        } catch (...) {
+        } catch (const std::exception& e) {
             res.status = 400;
-            res.set_content("Invalid config JSON", "text/plain");
+            res.set_content(std::string("Invalid config JSON: ") + e.what(), "text/plain");
         }
     });
 
     svr.Post("/api/v1/start", [](const httplib::Request&, httplib::Response& res) {
         if (controller.is_running()) {
             res.status = 409;
-            json j = {
-                {"running", controller.is_running()}
-            };
+            json j = { {"running", true}, {"message", "Already running"} };
             res.set_content(j.dump(2), "application/json");
             return;
-            
         }
+
         controller.start();
-        // res.status = 200;
-        json j = {
-            {"running", controller.is_running()}
-        };
+
+        res.status = 200;
+        json j = { {"running", true}, {"message", "Simulation started"} };
         res.set_content(j.dump(2), "application/json");
     });
 
