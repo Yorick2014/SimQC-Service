@@ -31,7 +31,7 @@ enum class Basis { rectilinear, diagonal };
 enum class Bit { zero = 0, one = 1 };
 
 struct Common{
-    QKDProtocol protocol;
+    uint16_t protocol;
     std::string laser_type;
     uint32_t num_pulses;
     uint16_t seed_Alice;

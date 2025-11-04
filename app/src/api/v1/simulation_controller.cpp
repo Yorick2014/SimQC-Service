@@ -25,8 +25,8 @@ void SimulationController::simulation_thread_func() {
     running_ = true;
     switch (params_.protocol)
     {
-    case QKDProtocol::BB84: run_bb84(params_, laser_data_); break;
-    case QKDProtocol::SARG04: /* code */ break;
+    case 1: run_bb84(params_, laser_data_); break;
+    // case 2: /* code */ break;
     default:
         break;
     }
