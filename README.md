@@ -1,2 +1,26 @@
-1. docker build -t simqc .
-2. docker run simqc
+# Сборка и запуск контейнера
+1. docker build -t simqc-api .
+2. docker run -p 5555:5555 simqc-api
+
+# Загрузка конфигурации
+```
+curl -X POST http://localhost:5555/api/v1/config \
+     -H "Content-Type: application/json" \
+     -d '{"common": {"protocol":1,"laser_type":"AttLaser","num_pulses":10,"seed_Alice": 10,"seed_Bob": 21},
+          "laser": {"central_wavelength":1550,"laser_power_w":1e-3,"pulse_duration":1e-9,"attenuation_db":60,"repeat_rate":300e6}}'
+```
+
+# Старт симуляции
+```
+curl -X POST http://localhost:5555/api/v1/start
+```
+
+# Проверить статус
+```
+curl -X GET http://localhost:5555/api/v1/status
+```
+
+# Остановить симуляцию
+```
+curl -X POST http://localhost:5555/api/v1/stop
+```
