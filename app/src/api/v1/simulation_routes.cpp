@@ -7,8 +7,6 @@ using json = nlohmann::json;
 
 namespace api::v1 {
 
-static SimulationController controller;
-
 void register_routes(httplib::Server& svr) {
     svr.Post("/api/v1/config", [](const httplib::Request& req, httplib::Response& res) {
         try {
@@ -24,19 +22,27 @@ void register_routes(httplib::Server& svr) {
         }
     });
 
-    svr.Post("/api/v1/start", [](const httplib::Request&, httplib::Response& res) {
+    svr.Post("/api/v1/start", [](const httplib::Request& req, httplib::Response& res) {
+        std::cout << "/start hit" << std::endl;
+        
         if (controller.is_running()) {
             res.status = 409;
-            json j = { {"running", true}, {"message", "Already running"} };
-            res.set_content(j.dump(2), "application/json");
+            res.set_content("Already running", "text/plain");
             return;
         }
 
-        controller.start();
+        try
+        {
+            auto j = json::parse(req.body);
+            if (j["start"]) controller.start();
+            
+        }
+        catch(const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
 
-        res.status = 200;
-        json j = { {"running", true}, {"message", "Simulation started"} };
-        res.set_content(j.dump(2), "application/json");
+        res.set_content("Sim running", "text/plain");
     });
 
     svr.Post("/api/v1/stop", [](const httplib::Request&, httplib::Response& res) {

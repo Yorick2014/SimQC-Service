@@ -10,17 +10,19 @@ curl -X POST http://localhost:5555/api/v1/config \
           "laser": {"central_wavelength":1550,"laser_power_w":1e-3,"pulse_duration":1e-9,"attenuation_db":60,"repeat_rate":300e6}}'
 ```
 
-# Старт симуляции
+# Старт
 ```
-curl -X POST http://localhost:5555/api/v1/start
+curl -X POST http://localhost:5555/api/v1/start \
+     -H "Content-Type: application/json" \
+     -d '{"start": true}'
 ```
 
-# Проверить статус
+# Cтатус
 ```
 curl -X GET http://localhost:5555/api/v1/status
 ```
 
-# Остановить симуляцию
+# Остановить
 ```
 curl -X POST http://localhost:5555/api/v1/stop
 ```
