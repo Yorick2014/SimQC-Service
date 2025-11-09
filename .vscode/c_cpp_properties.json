@@ -5,6 +5,7 @@
       "includePath": [
         "${workspaceFolder}/app/include",
         "${workspaceFolder}/app/external",
+        "${workspaceFolder}/app/src",
         "${workspaceFolder}/simqc/include",
         "${workspaceFolder}/**",
         "/usr/include/c++/12",
