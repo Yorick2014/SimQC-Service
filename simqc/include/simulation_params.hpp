@@ -31,19 +31,19 @@ enum class Basis { rectilinear, diagonal };
 enum class Bit { zero = 0, one = 1 };
 
 struct Common{
-    uint16_t protocol;
-    std::string laser_type;
-    uint32_t num_pulses;
-    uint16_t seed_Alice;
-    uint32_t seed_Bob;
+    uint16_t protocol; // 1 = BB84
+    std::string laser_type; // AttLaser
+    uint32_t num_pulses; // число импульсов, которые будут отправлены
+    uint16_t seed_Alice; // seed для генерации случайной последовательности
+    uint32_t seed_Bob; // seed для генерации случайной последовательности
 };
 
 struct LaserData{
-    double central_wavelength;
-    double laser_power_w;
-    double pulse_duration;
-    double attenuation_db;
-    double repeat_rate; // частота повторения импульсов
+    double central_wavelength; // метры
+    double laser_power_w; // ватты
+    double pulse_duration; // секунды
+    double attenuation_db; // дБ
+    double repeat_rate; // Гц (частота повторения импульсов)
 };
 struct Pulse {
     uint16_t count_photons;
@@ -60,11 +60,11 @@ struct Qubit {
 };
 
 struct QuantumChannel{
-    double channel_length;
-    double chromatic_dispersion;
-    double channel_attenuation;
-    bool is_att;
-    bool is_crom_disp; //хроматическая дисперсия
+    double channel_length; // км
+    double chromatic_dispersion; // пс/(нм·км)
+    double channel_attenuation; // дБ
+    bool is_att; // учитывать затухание
+    bool is_crom_disp; // учитывать хром дисперсию
 };
 struct Photodetector{
     double quantum_efficiency;
