@@ -7,7 +7,7 @@
 curl -X POST http://localhost:5555/api/v1/config \
      -H "Content-Type: application/json" \
      -d '{"common": {"protocol":1,"laser_type":"AttLaser","num_pulses":10,"seed_Alice": 10,"seed_Bob": 21},
-          "laser": {"central_wavelength":1550,"laser_power_w":1e-3,"pulse_duration":1e-9,"attenuation_db":60,"repeat_rate":300e6}}'
+          "laser": {"central_wavelength":1550e-9,"laser_power_w":1e-3,"pulse_duration":1e-9,"attenuation_db":60,"repeat_rate":300e6}}'
 ```
 
 # Старт
