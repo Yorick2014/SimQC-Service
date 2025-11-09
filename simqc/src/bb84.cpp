@@ -1,6 +1,8 @@
 #include "bb84.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <fstream>
+#include <ctime>
 
 AliceBB84::AliceBB84(ILaser& laser_ref, unsigned int seed)
     : generator(seed), modulator(), laser(laser_ref) {}
@@ -112,65 +114,81 @@ std::vector<Bit> sift_key(const AliceBB84& alice, const BobBB84& bob,
 }
 
 void run_bb84(Common& params, LaserData& laser_data){
+    std::cout << "--- Start BB84 ---" << std::endl;
 
+    // ------ ALICE -----
     std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
-
     AliceBB84 alice(*laser, params.seed_Alice);
-    BobBB84 bob(params.seed_Bob);
 
     auto N = params.num_pulses;
     auto sent_pulses = alice.generate_pulses(N);
-
-    std::cout << "\n[ALICE] Generated pulses:\n";
-    std::cout << "Idx | Bit | Basis | Polarization | Photons | Timestamp (ns)\n";
-    std::cout << "-----------------------------------------------------------\n";
-    for (size_t i = 0; i < sent_pulses.size(); ++i) {
-        const auto& sp = sent_pulses[i];
-        std::string basis_str = (sp.qubit.basis == Basis::rectilinear) ? "R" : "D";
-        std::string pol_str;
-        switch (sp.pulse.polarization) {
-            case Polarization::horizontal: pol_str = "H"; break;
-            case Polarization::vertical: pol_str = "V"; break;
-            case Polarization::diagonal: pol_str = "D"; break;
-            case Polarization::antidiagonal: pol_str = "A"; break;
-            case Polarization::RCP: pol_str = "RCP"; break;
-            case Polarization::LCP: pol_str = "LCP"; break;
-            default: std::cout << "Polarization is undefined"; break;
-        }
-
-        std::cout << std::setw(3) << i
-                  << " |  " << static_cast<int>(sp.qubit.bit)
-                  << "  |   " << basis_str
-                  << "   |      " << std::setw(3) << pol_str
-                  << "        |  " << std::setw(5) << sp.pulse.count_photons
-                  << "   |  " << std::fixed << std::setprecision(6) << sp.pulse.timestamp * 1e9
-                  << "\n";
-    }
-
     auto states = alice.send(N);
+
+    // ------ BOB -----
+    BobBB84 bob(params.seed_Bob);
     auto bob_results = bob.receive(states);
-
-    std::cout << "\n[BOB] Measurement results:\n";
     const auto& bob_bases = bob.get_bases();
-    for (size_t i = 0; i < bob_results.size(); ++i) {
-        std::string basis_str = (bob_bases[i].basis == Basis::rectilinear) ? "R" : "D";
-        std::string bit_str = bob_results[i].has_value()
-                                ? std::to_string(static_cast<int>(bob_results[i].value()))
-                                : "X"; // неопределён
-        std::cout << "Idx " << std::setw(2) << i
-                  << " | Basis: " << basis_str
-                  << " | Bit: " << bit_str
-                  << "\n";
-    }
 
+    // ----- SIFTED -----
     auto key = sift_key(alice, bob, bob_results);
-
-    std::cout << "\n[SIFTED KEY] ";
+    std::string key_str;
     if (key.empty()) {
-        std::cout << "(пустой — нет совпадений базисов)\n";
+        key_str = "пустой — нет совпадений базисов";
     } else {
         for (auto bit : key)
-            std::cout << static_cast<int>(bit);
-        std::cout << "\n";
+        key_str += std::to_string(static_cast<int>(bit));
     }
+    
+    // ----- WRITE TO CSV -----
+    std::time_t now = std::time(nullptr);
+    std::tm local_tm = *std::localtime(&now);
+
+    std::stringstream ss;
+    ss << std::put_time(&local_tm, "%Y-%m-%d_%H-%M-%S");
+    std::string timestamp = ss.str();
+    std::string filename = "bb84_results-" + timestamp + ".csv";
+
+    std::ofstream csv_file(filename);
+    if (!csv_file.is_open()) {
+        std::cerr << "Не удалось открыть файл для записи" << std::endl;
+        return;
+    }
+
+    csv_file << "Idx,Alice_Bit,Alice_Basis,Alice_Polarization,Alice_Photons,Alice_Timestamp_ns,Bob_Bit,Bob_Basis,key\n";
+    csv_file << ",,,,,,,," << key_str << "\n";
+
+    std::cout << "\n[BB84 RESULTS] Writing to CSV" << std::endl;
+    for (size_t i = 0; i < sent_pulses.size(); ++i) {
+        const auto& sp = sent_pulses[i];
+
+        std::string alice_basis_str = (sp.qubit.basis == Basis::rectilinear) ? "R" : "D";
+        std::string alice_pol_str;
+        switch (sp.pulse.polarization) {
+            case Polarization::horizontal: alice_pol_str = "H"; break;
+            case Polarization::vertical: alice_pol_str = "V"; break;
+            case Polarization::diagonal: alice_pol_str = "D"; break;
+            case Polarization::antidiagonal: alice_pol_str = "A"; break;
+            case Polarization::RCP: alice_pol_str = "RCP"; break;
+            case Polarization::LCP: alice_pol_str = "LCP"; break;
+            default: alice_pol_str = "Undefined"; break;
+        }
+
+        std::string bob_bit_str = bob_results[i].has_value()
+                                    ? std::to_string(static_cast<int>(bob_results[i].value()))
+                                    : "X"; // неопределён
+        std::string bob_basis_str = (bob_bases[i].basis == Basis::rectilinear) ? "R" : "D";
+
+        csv_file << i << ","
+                 << static_cast<int>(sp.qubit.bit) << ","
+                 << alice_basis_str << ","
+                 << alice_pol_str << ","
+                 << sp.pulse.count_photons << ","
+                 << std::fixed << std::setprecision(6) << sp.pulse.timestamp * 1e9 << ","
+                 << bob_bit_str << ","
+                 << bob_basis_str
+                 << "\n";
+    }
+
+    csv_file.close();
+    std::cout << "Данные записаны в " + filename << std::endl;
 }
