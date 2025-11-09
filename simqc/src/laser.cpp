@@ -26,13 +26,6 @@ static uint16_t get_photons(double photon_dist) {
     return static_cast<uint16_t>(dist(gen));
 }
 
-static uint16_t poisson_draw(double mean) {
-    static thread_local std::random_device rd;
-    static thread_local std::mt19937 gen(rd());
-    std::poisson_distribution<int> dist(mean);
-    return static_cast<uint16_t>(dist(gen));
-}
-
 double AttLaser::photon_energy_joule(double wavelength_m) {
     const double h = 6.62607015e-34;
     const double c = 299792458.0;
@@ -65,7 +58,12 @@ Pulse AttLaser::generate_pulse() {
 
     if (mean_photons < 0.0) mean_photons = 0.0;
 
-    uint16_t count = poisson_draw(mean_photons);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::poisson_distribution<> distr(mean_photons);
+
+    uint16_t count = distr(gen);
+    // std::cout << "num: " << count << std::endl;
 
     Pulse pulse(count, Polarization::horizontal, pulse_duration_s, current_time);
 
