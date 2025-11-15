@@ -6,15 +6,6 @@
 #include "beam_splitter.hpp"
 
 #include <iostream>
-#include <memory>
-#include <utility>
-#include <iomanip>
-#include <filesystem>
-#include <optional>
-#include <random>
-#include <chrono>
-#include <sstream>
-#include <fstream>
 
 inline std::string basis_to_string(Basis b) {
     switch (b) {
@@ -126,8 +117,46 @@ std::vector<Pulse> BB84::send_pulses(ILaser& laser, IModulator& modulator, Commo
     return out;
 }
 
-std::vector<std::optional<Bit>> measure_pulses(){
-    
+// Измерение каждого импульса Бобом
+BobMeasurementResult BB84::measure_pulses(
+    Common& params, 
+    const std::vector<Basis>& alice_bases, 
+    const std::vector<Pulse>& pulses, 
+    const std::vector<Pulse>& transmitted,
+    PhotodetectorData& ph_data)
+{
+    PBS splitter;
+    auto [channel_H, channel_V] = splitter.split(transmitted);
+
+    auto detector_H = PhotodetectorFactory::create(params.photodetector_type, ph_data);
+    auto detector_V = PhotodetectorFactory::create(params.photodetector_type, ph_data);
+
+    std::mt19937 gen(params.seed_Bob);
+    std::uniform_int_distribution<int> basis_dist(0, 1);
+
+    BobMeasurementResult out;
+    out.bob_bases.resize(params.num_pulses);
+    out.bob_results.resize(params.num_pulses, std::nullopt);
+
+    for (size_t i = 0; i < params.num_pulses; ++i) {
+        out.bob_bases[i] = (basis_dist(gen) == 0)
+            ? Basis::rectilinear
+            : Basis::diagonal;
+
+        if (out.bob_bases[i] != alice_bases[i]) continue;
+
+        bool detected = false;
+
+        if (pulses[i].polarization == Polarization::horizontal) {
+            detected = detector_H->detect(transmitted[i]);
+            if (detected) out.bob_results[i] = Bit::zero;
+        } else if (pulses[i].polarization == Polarization::vertical) {
+            detected = detector_V->detect(transmitted[i]);
+            if (detected) out.bob_results[i] = Bit::one;
+        }
+    }
+
+    return out;
 }
 
 void BB84::run(Common& params, LaserData& laser_data, QuantumChannelData& q_channel_data, PhotodetectorData& ph_data)
@@ -154,38 +183,9 @@ void BB84::run(Common& params, LaserData& laser_data, QuantumChannelData& q_chan
     auto channel = QuantumChannelFactory::create(params.channel_type, pulses, params, laser_data, q_channel_data);
     std::vector<Pulse> transmitted = channel->transmit();
 
-    // PBS сплиттер
-    PBS splitter;
-    auto [channel_H, channel_V] = splitter.split(transmitted);
-
-    // Фотодетекторы
-    auto detector_H = PhotodetectorFactory::create(params.photodetector_type, ph_data);
-    auto detector_V = PhotodetectorFactory::create(params.photodetector_type, ph_data);
-
-    // Измерение каждого импульса Бобом
-    std::mt19937 gen(params.seed_Bob);
-    std::uniform_int_distribution<int> basis_dist(0, 1);
-
-    std::vector<Basis> bob_bases(params.num_pulses);
-    std::vector<std::optional<Bit>> bob_results(params.num_pulses, std::nullopt);
-
-    for (size_t i = 0; i < params.num_pulses; ++i) {
-        // Случайный базис Боба
-        bob_bases[i] = (basis_dist(gen) == 0) ? Basis::rectilinear : Basis::diagonal;
-
-        // Проверяем совпадение базисов
-        if (bob_bases[i] != alice_bases[i]) continue;
-
-        // Детектируем фотон на соответствующем канале
-        bool detected = false;
-        if (pulses[i].polarization == Polarization::horizontal) {
-            detected = detector_H->detect(transmitted[i]);
-            if (detected) bob_results[i] = Bit::zero;
-        } else if (pulses[i].polarization == Polarization::vertical) {
-            detected = detector_V->detect(transmitted[i]);
-            if (detected) bob_results[i] = Bit::one;
-        }
-    }
+    auto bob_data = measure_pulses(params, alice_bases, pulses, transmitted, ph_data);
+    auto bob_bases = bob_data.bob_bases;
+    auto bob_results = bob_data.bob_results;
 
     std::vector<Bit> sifted_key;
     for (size_t i = 0; i < params.num_pulses; ++i) {
