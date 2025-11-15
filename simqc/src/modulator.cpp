@@ -1,6 +1,13 @@
 #include "modulator.hpp"
 
-Polarization PolarizationModulator::to_polarization(const Qubit& qubit) const {
+std::unique_ptr<IModulator> ModulatorFactory::create(const std::string& type){
+    
+    if (type == "polarization") return std::make_unique<PolarizationModulator>();
+    
+    throw std::invalid_argument("Неизвестный тип модуятора: " + type);
+}
+
+Polarization PolarizationModulator::to_polarization_bb84(const Qubit& qubit) const {
     if (qubit.basis == Basis::rectilinear) {
         return (qubit.bit == Bit::zero) ? Polarization::horizontal
                                         : Polarization::vertical;
@@ -12,7 +19,7 @@ Polarization PolarizationModulator::to_polarization(const Qubit& qubit) const {
 }
 
 JonesVector PolarizationModulator::modulate(const Qubit& qubit) const {
-    switch (to_polarization(qubit)) {
+    switch (to_polarization_bb84(qubit)) {
         case Polarization::horizontal:     return {1.0, 0.0};
         case Polarization::vertical:       return {0.0, 1.0};
         case Polarization::diagonal:       return {1.0 / std::sqrt(2), 1.0 / std::sqrt(2)};
