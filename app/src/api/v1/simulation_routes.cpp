@@ -13,7 +13,9 @@ void register_routes(httplib::Server& svr) {
             auto j = json::parse(req.body);
             Common params = j["common"].get<Common>();
             LaserData laser = j["laser"].get<LaserData>();
-            controller.load_config(params, laser);
+            QuantumChannelData q_channel_data = j["q_channel"].get<QuantumChannelData>();
+            PhotodetectorData ph_data = j["photodetector"].get<PhotodetectorData>();
+            controller.load_config(params, laser, q_channel_data, ph_data);
             // res.status = 200;
             res.set_content("Configuration loaded", "text/plain");
         } catch (const std::exception& e) {
