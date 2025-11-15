@@ -1,194 +1,215 @@
 #include "bb84.hpp"
-#include <stdexcept>
+#include "laser.hpp"
+#include "modulator.hpp"
+#include "quantum_channel.hpp"
+#include "photodetector.hpp"
+#include "beam_splitter.hpp"
+
 #include <iostream>
+#include <memory>
+#include <utility>
+#include <iomanip>
+#include <filesystem>
+#include <optional>
+#include <random>
+#include <chrono>
+#include <sstream>
 #include <fstream>
-#include <ctime>
 
-AliceBB84::AliceBB84(ILaser& laser_ref, unsigned int seed)
-    : generator(seed), modulator(), laser(laser_ref) {}
+inline std::string basis_to_string(Basis b) {
+    switch (b) {
+        case Basis::rectilinear: return "R";
+        case Basis::diagonal:    return "D";
+        default: return "Unknown";
+    }
+}
 
-// generate_pulses: генерируем последовательность Qubit'ов через SequenceGenerator,
-// создаём соответствующее количество физических импульсов через ILaser,
-// задаём каждому Pulse поляризацию согласно протоколу (через PolarizationModulator)
-// и возвращаем вектор пар {Pulse, Qubit}.
-std::vector<SentPulse> AliceBB84::generate_pulses(size_t length) {
-    generator.generate(length);
-    const auto& seq = generator.get_sequence();
+inline std::string bit_to_string(Bit bit) {
+    switch (bit) {
+        case Bit::zero: return "0";
+        case Bit::one:  return "1";
+        default: return "Unknown";
+    }
+}
 
-    std::vector<SentPulse> out;
-    out.reserve(length);
+void save_results_to_csv(const std::string& base_dir,
+                         const Common& params,
+                         const LaserData& laser_data,
+                         const QuantumChannelData& channel_data,
+                         const PhotodetectorData& det_data,
+                         const std::vector<Pulse>& pulses,
+                         const std::vector<double>& registered_H,
+                         const std::vector<double>& registered_V,
+                         const std::vector<Basis>& bob_bases,
+                         const std::vector<std::optional<Bit>>& bob_results,
+                         const std::vector<Bit>& sifted_key)
+{
+    namespace fs = std::filesystem;
+    fs::create_directories(base_dir);
 
-    for (size_t i = 0; i < length; ++i) {
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm = *std::localtime(&now_time_t);
+
+    std::ostringstream fname;
+    fname << base_dir << "/bb84_"
+          << std::put_time(&tm, "%Y%m%d_%H%M%S")
+          << ".csv";
+
+    std::ofstream fout(fname.str());
+    if (!fout.is_open()) {
+        std::cerr << "Не удалось создать файл: " << fname.str() << std::endl;
+        return;
+    }
+
+    fout << "index,alice_basis,bob_basis,match,alice_bit,bob_result,registered_H,registered_V,polarization\n";
+    for (size_t i = 0; i < pulses.size(); ++i) {
+        bool match = (pulses[i].basis == bob_bases[i]);
+        bool registered = bob_results[i].has_value();
+
+        fout << i << ","
+             << basis_to_string(pulses[i].basis) << ","
+             << basis_to_string(bob_bases[i]) << ","
+             << (match ? "Y" : "N") << ","
+             << static_cast<int>(pulses[i].bit) << ","
+             << (registered ? std::to_string(static_cast<int>(bob_results[i].value())) : "-") << ","
+             << (i < registered_H.size() ? registered_H[i] : 0.0) << ","
+             << (i < registered_V.size() ? registered_V[i] : 0.0) << ","
+             << polarization_to_string(pulses[i].polarization)
+             << "\n";
+    }
+
+    // Просеянный ключ
+    fout << "\n# Sifted key\n";
+    for (auto b : sifted_key) fout << static_cast<int>(b);
+    fout << "\n";
+
+    // Входные параметры
+    fout << "\n# Input parameters\n";
+    fout << "num_pulses," << params.num_pulses << "\n";
+    fout << "seed_Alice," << params.seed_Alice << "\n";
+    fout << "seed_Bob," << params.seed_Bob << "\n";
+    fout << "laser_type," << laser_data.central_wavelength << "\n";
+    fout << "laser_power," << laser_data.laser_power_w << "\n";
+    fout << "attenuation_db," << laser_data.attenuation_db << "\n";
+    fout << "pulse_duration," << laser_data.pulse_duration << "\n";
+    fout << "repeat_rate," << laser_data.repeat_rate << "\n";
+    fout << "channel_length," << channel_data.channel_length << "\n";
+    fout << "chromatic_dispersion," << channel_data.chromatic_dispersion << "\n";
+    fout << "channel_attenuation," << channel_data.channel_attenuation << "\n";
+    fout << "pde," << det_data.pde << "\n";
+
+    fout.close();
+    std::cout << "[CSV] Результаты сохранены в " << fname.str() << std::endl;
+}
+
+std::vector<Pulse> BB84::send_pulses(ILaser& laser, IModulator& modulator, Common& params, LaserData& laser_data)
+{
+    SequenceGenerator seq_generator(params.seed_Alice);
+    seq_generator.generate(params.num_pulses);
+    const auto& seq = seq_generator.get_sequence();
+
+    std::vector<Pulse> out;
+    out.reserve(params.num_pulses);    
+
+    for (size_t i = 0; i < params.num_pulses; ++i) {
         Pulse p = laser.generate_pulse();
         const Qubit& q = seq.at(i);
 
-        // поляризация согласно BB84
-        p.polarization = modulator.to_polarization(q);
+        p.polarization = modulator.to_polarization_bb84(q);
+        p.basis = q.basis;
+        p.bit   = q.bit;
 
-        out.emplace_back(p, q);
+        out.push_back(p);
     }
 
     return out;
 }
 
-// send: упрощённо — вызывает generate_pulses и возвращает вектор поляризаций,
-// которые подлежат отправке в квантовый канал.
-// Фактическая "передача" (например, помещение в объект QuantumChannel) должна
-// выполняться в вызывающем коде с использованием результата generate_pulses().
-std::vector<Polarization> AliceBB84::send(size_t length) {
-    auto sent = generate_pulses(length);
-    std::vector<Polarization> pols;
-    pols.reserve(sent.size());
-    for (const auto& sp : sent) {
-        pols.push_back(sp.pulse.polarization);
-    }
-    return pols;
+std::vector<std::optional<Bit>> measure_pulses(){
+    
 }
 
-const std::vector<Qubit>& AliceBB84::get_sequence() const {
-    return generator.get_sequence();
-}
-
-BobBB84::BobBB84(unsigned int seed)
-    : basis_generator(seed) {}
-
-std::vector<std::optional<Bit>> BobBB84::receive(const std::vector<Polarization>& states) {
-    size_t n = states.size();
-    basis_generator.generate(n);
-    const auto& bases = basis_generator.get_sequence();
-
-    std::vector<std::optional<Bit>> results;
-    results.reserve(n);
-
-    for (size_t i = 0; i < n; ++i) {
-        // Если выбранный базис соответствует поляризации, получаем бит, иначе результат неопределён
-        // Тут нужно иметь логику измерения: для простоты — сравниваем ожидаемую поляризацию базиса с полученной.
-        // Предположительная функция: PolarizationModulator::measure(polarization, basis) -> optional<Bit>
-        // Но её у нас нет — поэтому сделаем простую эвристику (требует замены реальной моделью измерения).
-        const Qubit& qb = bases.at(i);
-        // Преобразуем базис + предполагаемый нул/единицу в поляризацию — как в модуле Алисы
-        Polarization expected0 = Polarization::horizontal;
-        Polarization expected1 = Polarization::vertical;
-        if (qb.basis == Basis::diagonal) {
-            expected0 = Polarization::diagonal;
-            expected1 = Polarization::antidiagonal;
-        }
-
-        if (states[i] == expected0) {
-            results.emplace_back(Bit::zero);
-        } else if (states[i] == expected1) {
-            results.emplace_back(Bit::one);
-        } else {
-            results.emplace_back(std::nullopt);
-        }
-    }
-
-    return results;
-}
-
-const std::vector<Qubit>& BobBB84::get_bases() const {
-    return basis_generator.get_sequence();
-}
-
-/// ------------------- sift_key -------------------
-std::vector<Bit> sift_key(const AliceBB84& alice, const BobBB84& bob,
-                          const std::vector<std::optional<Bit>>& bob_results) {
-    const auto& a_seq = alice.get_sequence();
-    const auto& b_bases = bob.get_bases();
-
-    if (a_seq.size() != bob_results.size() || b_bases.size() != bob_results.size()) {
-        throw std::runtime_error("Размеры последовательностей не совпадают при согласовании ключа");
-    }
-
-    std::vector<Bit> key;
-    key.reserve(bob_results.size());
-
-    for (size_t i = 0; i < bob_results.size(); ++i) {
-        // если базисы совпали и результат измерения определён — добавляем бит
-        if (a_seq[i].basis == b_bases[i].basis && bob_results[i].has_value()) {
-            key.push_back(bob_results[i].value());
-        }
-    }
-
-    return key;
-}
-
-void run_bb84(Common& params, LaserData& laser_data){
+void BB84::run(Common& params, LaserData& laser_data, QuantumChannelData& q_channel_data, PhotodetectorData& ph_data)
+{
     std::cout << "--- Start BB84 ---" << std::endl;
 
-    // ------ ALICE -----
-    std::unique_ptr<ILaser> laser = LaserFactory::create(params.laser_type, laser_data);
-    AliceBB84 alice(*laser, params.seed_Alice);
+    // Лазер и модуляторы Алисы и Боба
+    auto laser = LaserFactory::create(params.laser_type, laser_data);
+    auto alice_modulator = ModulatorFactory::create(params.modulator_type);
+    auto bob_modulator   = ModulatorFactory::create(params.modulator_type);
 
-    auto N = params.num_pulses;
-    auto sent_pulses = alice.generate_pulses(N);
-    auto states = alice.send(N);
+    // Генерация импульсов Алисы
+    std::vector<Pulse> pulses = send_pulses(*laser, *alice_modulator, params, laser_data);
 
-    // ------ BOB -----
-    BobBB84 bob(params.seed_Bob);
-    auto bob_results = bob.receive(states);
-    const auto& bob_bases = bob.get_bases();
-
-    // ----- SIFTED -----
-    auto key = sift_key(alice, bob, bob_results);
-    std::string key_str;
-    if (key.empty()) {
-        key_str = "пустой — нет совпадений базисов";
-    } else {
-        for (auto bit : key)
-        key_str += std::to_string(static_cast<int>(bit));
-    }
-    
-    // ----- WRITE TO CSV -----
-    std::time_t now = std::time(nullptr);
-    std::tm local_tm = *std::localtime(&now);
-
-    std::stringstream ss;
-    ss << std::put_time(&local_tm, "%Y-%m-%d_%H-%M-%S");
-    std::string timestamp = ss.str();
-    std::string filename = "bb84_results-" + timestamp + ".csv";
-
-    std::ofstream csv_file(filename);
-    if (!csv_file.is_open()) {
-        std::cerr << "Не удалось открыть файл для записи" << std::endl;
-        return;
+    // Базы и биты Алисы
+    std::vector<Basis> alice_bases(params.num_pulses);
+    std::vector<Bit>   alice_bits(params.num_pulses);
+    for (size_t i = 0; i < params.num_pulses; ++i) {
+        alice_bases[i] = pulses[i].basis;
+        alice_bits[i]  = pulses[i].bit;
     }
 
-    csv_file << "Idx,Alice_Bit,Alice_Basis,Alice_Polarization,Alice_Photons,Alice_Timestamp_ns,Bob_Bit,Bob_Basis,key\n";
-    csv_file << ",,,,,,,," << key_str << "\n";
+    // Квантовый канал
+    auto channel = QuantumChannelFactory::create(params.channel_type, pulses, params, laser_data, q_channel_data);
+    std::vector<Pulse> transmitted = channel->transmit();
 
-    std::cout << "\n[BB84 RESULTS] Writing to CSV" << std::endl;
-    for (size_t i = 0; i < sent_pulses.size(); ++i) {
-        const auto& sp = sent_pulses[i];
+    // PBS сплиттер
+    PBS splitter;
+    auto [channel_H, channel_V] = splitter.split(transmitted);
 
-        std::string alice_basis_str = (sp.qubit.basis == Basis::rectilinear) ? "R" : "D";
-        std::string alice_pol_str;
-        switch (sp.pulse.polarization) {
-            case Polarization::horizontal: alice_pol_str = "H"; break;
-            case Polarization::vertical: alice_pol_str = "V"; break;
-            case Polarization::diagonal: alice_pol_str = "D"; break;
-            case Polarization::antidiagonal: alice_pol_str = "A"; break;
-            case Polarization::RCP: alice_pol_str = "RCP"; break;
-            case Polarization::LCP: alice_pol_str = "LCP"; break;
-            default: alice_pol_str = "Undefined"; break;
+    // Фотодетекторы
+    auto detector_H = PhotodetectorFactory::create(params.photodetector_type, ph_data);
+    auto detector_V = PhotodetectorFactory::create(params.photodetector_type, ph_data);
+
+    // Измерение каждого импульса Бобом
+    std::mt19937 gen(params.seed_Bob);
+    std::uniform_int_distribution<int> basis_dist(0, 1);
+
+    std::vector<Basis> bob_bases(params.num_pulses);
+    std::vector<std::optional<Bit>> bob_results(params.num_pulses, std::nullopt);
+
+    for (size_t i = 0; i < params.num_pulses; ++i) {
+        // Случайный базис Боба
+        bob_bases[i] = (basis_dist(gen) == 0) ? Basis::rectilinear : Basis::diagonal;
+
+        // Проверяем совпадение базисов
+        if (bob_bases[i] != alice_bases[i]) continue;
+
+        // Детектируем фотон на соответствующем канале
+        bool detected = false;
+        if (pulses[i].polarization == Polarization::horizontal) {
+            detected = detector_H->detect(transmitted[i]);
+            if (detected) bob_results[i] = Bit::zero;
+        } else if (pulses[i].polarization == Polarization::vertical) {
+            detected = detector_V->detect(transmitted[i]);
+            if (detected) bob_results[i] = Bit::one;
         }
-
-        std::string bob_bit_str = bob_results[i].has_value()
-                                    ? std::to_string(static_cast<int>(bob_results[i].value()))
-                                    : "X"; // неопределён
-        std::string bob_basis_str = (bob_bases[i].basis == Basis::rectilinear) ? "R" : "D";
-
-        csv_file << i << ","
-                 << static_cast<int>(sp.qubit.bit) << ","
-                 << alice_basis_str << ","
-                 << alice_pol_str << ","
-                 << sp.pulse.count_photons << ","
-                 << std::fixed << std::setprecision(6) << sp.pulse.timestamp * 1e9 << ","
-                 << bob_bit_str << ","
-                 << bob_basis_str
-                 << "\n";
     }
 
-    csv_file.close();
-    std::cout << "Данные записаны в " + filename << std::endl;
+    std::vector<Bit> sifted_key;
+    for (size_t i = 0; i < params.num_pulses; ++i) {
+        if (bob_results[i].has_value())
+            sifted_key.push_back(bob_results[i].value());
+    }
+
+    std::cout << "\n--- Логи BB84 ---\n";
+    std::cout << "Индекс | Alice Basis | Bob Basis | Match | Alice Bit | Bob Result\n";
+    for (size_t i = 0; i < params.num_pulses; ++i) {
+        bool match = (alice_bases[i] == bob_bases[i]);
+        std::cout << i << " | "
+                  << basis_to_string(alice_bases[i]) << " | "
+                  << basis_to_string(bob_bases[i]) << " | "
+                  << (match ? "Y" : "N") << " | "
+                  << static_cast<int>(alice_bits[i]) << " | "
+                  << (bob_results[i].has_value() ? std::to_string(static_cast<int>(bob_results[i].value())) : "-")
+                  << "\n";
+    }
+
+    std::cout << "\nСогласованный ключ: ";
+    for (auto b : sifted_key) std::cout << static_cast<int>(b);
+    std::cout << "\n";
+
+    save_results_to_csv("results", params, laser_data, q_channel_data, ph_data,
+                        pulses, {}, {}, bob_bases, bob_results, sifted_key);
 }

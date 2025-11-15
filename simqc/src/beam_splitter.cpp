@@ -5,7 +5,6 @@
 PBS::PBS(double cross_talk_prob)
     : cross_talk_prob_(cross_talk_prob) {}
 
-// Реализация split
 std::pair<std::vector<Pulse>, std::vector<Pulse>>
 PBS::split(const std::vector<Pulse>& pulses) const {
     std::vector<Pulse> channel_H, channel_V;
@@ -36,7 +35,6 @@ PBS::split(const std::vector<Pulse>& pulses) const {
     return {channel_H, channel_V};
 }
 
-// Генерация случайного числа
 double PBS::random_0_to_1() {
     static thread_local std::mt19937 gen(std::random_device{}());
     static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);

@@ -53,6 +53,8 @@ struct Pulse {
     Polarization polarization;
     double duration;
     double timestamp;
+    Basis basis;
+    Bit bit;
     Pulse(uint16_t c, Polarization p, double d, double t)
         : count_photons(c), polarization(p), duration(d), timestamp(t) {}
 };

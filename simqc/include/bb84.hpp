@@ -1,55 +1,15 @@
 #pragma once
-
-#include <vector>
-#include <optional>
 #include "sequence_generator.hpp"
-#include "modulator.hpp"
 #include "laser.hpp"
+#include "modulator.hpp"
+#include "quantum_channel.hpp"
+#include "beam_splitter.hpp"
+#include "photodetector.hpp"
 
-struct SentPulse {
-    Pulse pulse;
-    Qubit qubit;
-    SentPulse(const Pulse& p, const Qubit& q) : pulse(p), qubit(q) {}
-};
-
-class AliceBB84 {
+class BB84{
 private:
-    SequenceGenerator generator;
-    PolarizationModulator modulator;
-    ILaser& laser;                // ссылочный внешний лазер (передаётся извне)
-
+    std::vector<Pulse> send_pulses(ILaser& laser, IModulator& modulator, Common& params, LaserData& laser_data);
+    std::vector<std::optional<Bit>> measure_pulses();
 public:
-    // Принимаем внешний ILaser, чтобы можно было переиспользовать разные лазеры.
-    explicit AliceBB84(ILaser& laser_ref, unsigned int seed = std::random_device{}());
-
-    // Сгенерировать пары {Pulse + Qubit} (не отправляет),
-    // устанавливает поляризацию в Pulse в соответствии с Qubit.
-    std::vector<SentPulse> generate_pulses(size_t length);
-
-    // Отправить (логически) — возвращает вектор поляризаций (для совместимости / тестов).
-    // Реально отправку в квантовый канал предполагаем делать вне — передаём вектор SentPulse.
-    std::vector<Polarization> send(size_t length);
-
-    // Получить последовательность битов и базисов Алисы
-    const std::vector<Qubit>& get_sequence() const;
+    void run(Common& params, LaserData& laser_data, QuantumChannelData& q_channel_data, PhotodetectorData& ph_data);
 };
-
-class BobBB84 {
-private:
-    SequenceGenerator basis_generator; // для случайных базисов
-
-public:
-    explicit BobBB84(unsigned int seed = std::random_device{}());
-
-    std::vector<std::optional<Bit>> receive(const std::vector<Polarization>& states);
-
-    // Получить использованные базисы Боба
-    const std::vector<Qubit>& get_bases() const;
-};
-
-// Согласование ключей (оставить только те позиции, где базисы совпали)
-std::vector<Bit> sift_key(const AliceBB84& alice, const BobBB84& bob,
-                          const std::vector<std::optional<Bit>>& bob_results);
-
-void run_bb84(Common& params, LaserData& laser_data);
-

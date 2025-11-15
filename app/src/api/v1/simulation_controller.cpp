@@ -32,13 +32,10 @@ bool SimulationController::stop_requested() const { return stop_flag_.load(); }
 
 void SimulationController::simulation_thread_func() {
     running_ = true;
-    std::cout << "run sim" << std::endl;
-    std::cout << "Protocol: " << params_.protocol << std::endl;
 
     switch (params_.protocol)
     {
-    case 1: std::cout << "BB84" << std::endl; run_bb84(params_, laser_data_); break;
-    case 2: std::cout << "TestBB84" << std::endl; test_bb84.run(params_, laser_data_, channel_data_, ph_data_); break;
+    case 1: std::cout << "BB84" << std::endl; test_bb84.run(params_, laser_data_, channel_data_, ph_data_); break;
     default:
         std::cout << "default case" << std::endl;
         break;
