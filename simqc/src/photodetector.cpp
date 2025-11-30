@@ -22,14 +22,6 @@ double SPAD::generate_random_0_to_1() {
     return dist(gen);
 }
 
-bool SPAD::detect(const Pulse& p) {
-    for (uint16_t i = 0; i < p.count_photons; ++i) {
-        if (generate_random_0_to_1() <= det_data_.pde)
-            return true;
-    }
-    return false;
-}
-
 // генерация временных окон регистрации (time slots)
 void SPAD::generate_time_slots(unsigned int num_pulses,
                                double rep_rate_hz,

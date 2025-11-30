@@ -9,8 +9,6 @@ class IPhotodetector {
 public:
     virtual ~IPhotodetector() = default;
 
-    virtual bool detect(const Pulse& p) = 0;
-
     virtual void generate_photon_timelabels(unsigned int num_pulses,
                                             const std::vector<unsigned int>& num_photons,
                                             std::vector<std::vector<double>>& photon_times,
@@ -41,8 +39,6 @@ private:
 public:
     explicit SPAD(const PhotodetectorData& data)
         : det_data_(data) {}
-
-    bool detect(const Pulse& p) override; 
 
     void generate_photon_timelabels(unsigned int num_pulses,
                                     const std::vector<unsigned int>& num_photons,
