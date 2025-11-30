@@ -55,8 +55,9 @@ struct Pulse {
     double timestamp;
     Basis basis;
     Bit bit;
+    size_t id;
     Pulse(uint16_t c, Polarization p, double d, double t)
-        : count_photons(c), polarization(p), duration(d), timestamp(t) {}
+        : count_photons(c), polarization(p), duration(d), timestamp(t), id(0) {}
 };
 
 struct Qubit {
