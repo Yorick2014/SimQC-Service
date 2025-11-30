@@ -10,4 +10,8 @@ target_include_directories(qkd_api PRIVATE
     ${CMAKE_SOURCE_DIR}/simqc/include
 )
 
-target_link_libraries(qkd_api PRIVATE qkd_lib pthread)
+target_link_libraries(qkd_api PRIVATE
+    qkd_lib
+    pthread
+    uuid
+)

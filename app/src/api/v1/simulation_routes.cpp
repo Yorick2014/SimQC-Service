@@ -2,6 +2,7 @@
 #include "api/v1/simulation_controller.hpp"
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <uuid/uuid.h>
 
 using json = nlohmann::json;
 
@@ -24,27 +25,41 @@ void register_routes(httplib::Server& svr) {
         }
     });
 
-    svr.Post("/api/v1/start", [](const httplib::Request& req, httplib::Response& res) {
-        std::cout << "/start hit" << std::endl;
-        
+    svr.Post("/api/v1/start", [&](const httplib::Request& req, httplib::Response& res) {
         if (controller.is_running()) {
             res.status = 409;
-            res.set_content("Already running", "text/plain");
+            res.set_content(R"({"error":"Already running"})", "application/json");
             return;
         }
 
-        try
-        {
+        try {
             auto j = json::parse(req.body);
-            if (j["start"]) controller.start();
-            
-        }
-        catch(const std::exception& e)
-        {
-            std::cerr << e.what() << '\n';
+            if (!j.contains("start") || !j["start"].get<bool>()) {
+                res.status = 400;
+                res.set_content(R"({"error":"Invalid request"})", "application/json");
+                return;
+            }
+        } catch (...) {
+            res.status = 400;
+            res.set_content(R"({"error":"Bad JSON"})", "application/json");
+            return;
         }
 
-        res.set_content("Sim running", "text/plain");
+        uuid_t uuid;
+        uuid_generate(uuid);
+
+        char uuid_str[37];
+        uuid_unparse(uuid, uuid_str);
+
+        std::string run_id = uuid_str;
+
+        controller.start();
+
+        json response;
+        response["run_id"] = "123";
+        response["status"] = "started";
+
+        res.set_content(response.dump(), "application/json");
     });
 
     svr.Post("/api/v1/stop", [](const httplib::Request&, httplib::Response& res) {
