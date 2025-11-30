@@ -1,4 +1,5 @@
 #pragma once
+
 #include "sequence_generator.hpp"
 #include "laser.hpp"
 #include "modulator.hpp"

@@ -4,6 +4,7 @@
 #include <mutex>
 #include "simulation_params.hpp"
 #include "bb84.hpp"
+#include "test.hpp"
 
 class SimulationController {
 public:
@@ -16,7 +17,7 @@ public:
 private:
     void simulation_thread_func();
 
-    BB84 test_bb84;
+    TestBB84 test_bb84;
 
     Common params_;
     LaserData laser_data_;
