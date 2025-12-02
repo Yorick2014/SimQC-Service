@@ -39,25 +39,31 @@ FOCL::FOCL(const std::vector<Pulse>& pulses,
                                        const QuantumChannelData& channel)
     : pulses_(pulses), params_(params), laser_data_(laser_data), channel_(channel) {}
 
-
 std::vector<Pulse> FOCL::transmit() {
     std::vector<Pulse> transmitted;
     transmitted.reserve(pulses_.size());
-
-    double loss_prob = channel_.is_att
-        ? get_att(channel_.channel_attenuation, channel_.channel_length)
-        : 0.0;
 
     double broadening = channel_.is_crom_disp
         ? compute_chromatic_broadening()
         : 0.0;
 
     for (const auto& p : pulses_) {
-        double rand_val = static_cast<double>(std::rand()) / RAND_MAX;
-        bool lost = is_photon_loss(rand_val, loss_prob);
+        Pulse new_p = p;
+        int survived_photons = 0;
 
-        if (!lost) {
-            Pulse new_p = p;
+        for (int i = 0; i < p.count_photons; ++i) {
+            double rand_val = static_cast<double>(std::rand()) / RAND_MAX;
+            double loss_prob = channel_.is_att
+                ? get_att(channel_.channel_attenuation, channel_.channel_length)
+                : 0.0;
+
+            if (!is_photon_loss(rand_val, loss_prob)) {
+                ++survived_photons;
+            }
+        }
+
+        if (survived_photons > 0) {
+            new_p.count_photons = survived_photons;
             new_p.duration += broadening;
             transmitted.push_back(new_p);
         }
@@ -69,3 +75,4 @@ std::vector<Pulse> FOCL::transmit() {
 
     return transmitted;
 }
+
