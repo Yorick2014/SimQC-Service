@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <chrono>
 #include <algorithm>
 
 inline std::string basis_to_string(Basis b) {
@@ -69,9 +68,14 @@ void save_stats_csv(const std::string& dir,
                     size_t sifted_key_len,
                     double QBER,
                     double key_rate,
-                    const std::vector<Bit>& sifted_key)
+                    const std::vector<Bit>& sifted_key,
+                    const Common& params,
+                    const LaserData& laser,
+                    const QuantumChannelData& qchan,
+                    const PhotodetectorData& pd)
 {
     std::ofstream fout(dir + "/stats.csv");
+
     fout << "total_pulses,detected_H,detected_V,raw_key_len,sifted_key_len,QBER,key_rate,sifted_key\n";
     fout << total_pulses << ","
          << detected_H << ","
@@ -81,13 +85,47 @@ void save_stats_csv(const std::string& dir,
          << QBER << ","
          << key_rate << ",";
 
-    // формируем sifted key
-    for (size_t i = 0; i < sifted_key.size(); ++i) {
-        fout << bit_to_string(sifted_key[i]);
-    }
-    fout << "\n";
+    for (auto b : sifted_key) fout << bit_to_string(b);
+    fout << "\n\n";
+
+    // -------- input parameters --------
+    fout << "[input_parameters]\n";
+
+    // Common
+    fout << "protocol," << params.protocol << "\n";
+    fout << "laser_type," << params.laser_type << "\n";
+    fout << "modulator_type," << params.modulator_type << "\n";
+    fout << "channel_type," << params.channel_type << "\n";
+    fout << "photodetector_type," << params.photodetector_type << "\n";
+    fout << "num_pulses," << params.num_pulses << "\n";
+    fout << "seed_Alice," << params.seed_Alice << "\n";
+    fout << "seed_Bob," << params.seed_Bob << "\n";
+
+    // Laser
+    fout << "central_wavelength," << laser.central_wavelength << "\n";
+    fout << "laser_power_w," << laser.laser_power_w << "\n";
+    fout << "pulse_duration," << laser.pulse_duration << "\n";
+    fout << "attenuation_db," << laser.attenuation_db << "\n";
+    fout << "repeat_rate," << laser.repeat_rate << "\n";
+
+    // Quantum channel
+    fout << "channel_length," << qchan.channel_length << "\n";
+    fout << "chromatic_dispersion," << qchan.chromatic_dispersion << "\n";
+    fout << "channel_attenuation," << qchan.channel_attenuation << "\n";
+    fout << "is_att," << (qchan.is_att ? "true" : "false") << "\n";
+    fout << "is_crom_disp," << (qchan.is_crom_disp ? "true" : "false") << "\n";
+
+    // Photodetector
+    fout << "pde," << pd.pde << "\n";
+    fout << "dead_time," << pd.dead_time << "\n";
+    fout << "dcr," << pd.dcr << "\n";
+    fout << "time_slot," << pd.time_slot << "\n";
+    fout << "afterpulse_prob," << pd.afterpulse_prob << "\n";
+    fout << "afterpulse_delay," << pd.afterpulse_delay << "\n";
+
     fout.close();
 }
+
 
 std::vector<Pulse> TestBB84::send_pulse(ILaser& laser,
                                         IModulator& modulator,
@@ -120,18 +158,13 @@ std::vector<Pulse> TestBB84::send_pulse(ILaser& laser,
 void TestBB84::run(Common& params,
                    LaserData& laser_data,
                    QuantumChannelData& q_channel_data,
-                   PhotodetectorData& ph_data)
+                   PhotodetectorData& ph_data,
+                   const std::string& run_id)
 {
-    std::cout << "--- Start BB84 ---" << std::endl;
-
-    // --- создаём директорию для этого запуска ---
-    auto now = std::chrono::system_clock::now();
-    auto now_time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&now_time_t);
+    std::cout << "--- Start BB84 for run_id: " << run_id << " ---" << std::endl;
 
     std::ostringstream folder_name;
-    folder_name << "results/bb84_"
-                << std::put_time(&tm, "%Y%m%d_%H%M%S");
+    folder_name << "results/bb84_" << run_id;
     std::filesystem::create_directories(folder_name.str());
     std::string run_dir = folder_name.str();
 
@@ -313,7 +346,20 @@ void TestBB84::run(Common& params,
     double key_rate = static_cast<double>(sifted_key_len) / total_pulses;
 
     save_pulses_csv(run_dir, pulses, bob_seq, bob_bits, match_basis, errors, time_H_by_id, time_V_by_id);
-    save_stats_csv(run_dir, total_pulses, num_registered_H, num_registered_V, raw_key_len, sifted_key_len, QBER, key_rate, sifted_key);
+    save_stats_csv(run_dir,
+               total_pulses,
+               num_registered_H,
+               num_registered_V,
+               raw_key_len,
+               sifted_key_len,
+               QBER,
+               key_rate,
+               sifted_key,
+               params,
+               laser_data,
+               q_channel_data,
+               ph_data);
+
 
     std::cout << "[BB84] Результаты сохранены в " << run_dir << std::endl;
     std::cout << "QBER (%): " << QBER << ", Key rate: " << key_rate << std::endl;
