@@ -14,12 +14,12 @@ void SimulationController::load_config(const Common& params, const LaserData& la
     std::cout << "load_config() end" << std::endl;
 }
 
-void SimulationController::start() {
-    std::cout << "start() called" << std::endl;
+void SimulationController::start(const std::string& run_id) {
+    std::cout << "start() called with run_id: " << run_id << std::endl;
     if (running_) return;
     stop_flag_ = false;
-    worker_ = std::thread(&SimulationController::simulation_thread_func, this);
-    std::cout << "thread created" << std::endl;
+
+    worker_ = std::thread(&SimulationController::simulation_thread_func, this, run_id);
     worker_.detach();
 }
 
@@ -30,12 +30,15 @@ void SimulationController::stop() {
 bool SimulationController::is_running() const { return running_.load(); }
 bool SimulationController::stop_requested() const { return stop_flag_.load(); }
 
-void SimulationController::simulation_thread_func() {
+void SimulationController::simulation_thread_func(const std::string& run_id) {
     running_ = true;
 
     switch (params_.protocol)
     {
-    case 1: std::cout << "BB84" << std::endl; test_bb84.run(params_, laser_data_, channel_data_, ph_data_); break;
+    case 1:
+        std::cout << "BB84" << std::endl;
+        test_bb84.run(params_, laser_data_, channel_data_, ph_data_, run_id);
+        break;
     default:
         std::cout << "default case" << std::endl;
         break;

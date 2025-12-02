@@ -9,13 +9,13 @@
 class SimulationController {
 public:
     void load_config(const Common& params, const LaserData& laser, const QuantumChannelData& q_channel_data, const PhotodetectorData& ph_data);
-    void start();
+    void start(const std::string& run_id);
     void stop();
     bool is_running() const;
     bool stop_requested() const;
 
 private:
-    void simulation_thread_func();
+    void simulation_thread_func(const std::string& run_id);
 
     TestBB84 test_bb84;
 

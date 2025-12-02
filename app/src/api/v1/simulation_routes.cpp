@@ -53,15 +53,33 @@ void register_routes(httplib::Server& svr) {
 
         std::string run_id = uuid_str;
 
-        controller.start();
+        controller.start(run_id);
 
         json response;
-        response["run_id"] = "123";
+        response["run_id"] = uuid_str;
         response["status"] = "started";
 
         res.set_content(response.dump(), "application/json");
     });
 
+    svr.Get(R"(/api/v1/results/(\w+))", [](const httplib::Request& req, httplib::Response& res) {
+        std::string run_id = req.matches[1];
+
+        std::string stats_path = "results/bb84_" + run_id + "/stats.csv";
+        if (!std::filesystem::exists(stats_path)) {
+            res.status = 404;
+            res.set_content(R"({"error":"Run not found"})", "application/json");
+            return;
+        }
+
+        std::ifstream fin(stats_path);
+        std::stringstream buffer;
+        buffer << fin.rdbuf();
+        fin.close();
+
+        res.set_content(buffer.str(), "text/csv");
+    });
+   
     svr.Post("/api/v1/stop", [](const httplib::Request&, httplib::Response& res) {
         controller.stop();
         // res.status = 200;
